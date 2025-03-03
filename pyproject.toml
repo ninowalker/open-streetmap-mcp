@@ -4,10 +4,13 @@ version = "0.1.0"
 description = "An OpenStreetMap MCP server"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = [ "mcp>=1.3.0",]
+dependencies = [
+ "aiohttp>=3.11.13",
+ "mcp[cli]>=1.3.0",
+]
 [[project.authors]]
 name = "Jagan Shanmugam"
-email = "jagan.shanmugam@mercedes-benz.com"
+email = "jaganshanmugam@outlook.com"
 
 [build-system]
 requires = [ "hatchling",]

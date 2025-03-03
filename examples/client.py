@@ -1,85 +1,98 @@
-from mcp.client import Client
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
 import asyncio
 import json
 
 async def main():
-    # Connect to the OSM MCP server
-    client = Client("http://localhost:8000")
-    
-    # Get information about tools
-    schema = await client.get_openapi_schema()
-    print(f"Available tools: {list(schema['components']['schemas'].keys())}")
-    
-    # Example 1: Get information about a specific place
-    print("\n--- Example 1: Get Place Info ---")
-    place_data = await client.get_resource("osm://place/San Francisco")
-    place_info = json.loads(place_data.decode('utf-8'))
-    if place_info:
-        print(f"Found place: {place_info[0]['display_name']}")
-        print(f"Coordinates: {place_info[0]['lat']}, {place_info[0]['lon']}")
-    
-    # Example 2: Search for features in an area
-    print("\n--- Example 2: Search Features ---")
-    # Use coordinates from the place we found
-    if place_info:
-        lat, lon = float(place_info[0]['lat']), float(place_info[0]['lon'])
-        # Create a small bounding box around the point
-        bbox = {
-            "min_lat": lat - 0.01,
-            "min_lon": lon - 0.01,
-            "max_lat": lat + 0.01,
-            "max_lon": lon + 0.01,
-        }
-        
-        # Search for restaurants
-        restaurants = await client.invoke_tool(
-            "search_osm_features",
-            {
-                "min_lat": bbox["min_lat"],
-                "min_lon": bbox["min_lon"],
-                "max_lat": bbox["max_lat"],
-                "max_lon": bbox["max_lon"],
-                "tags": {"amenity": "restaurant"}
-            }
-        )
-        
-        print(f"Found {len(restaurants)} restaurants in the area")
-        for i, restaurant in enumerate(restaurants[:5]):  # Show first 5
-            print(f"  {i+1}. {restaurant.get('tags', {}).get('name', 'Unnamed')}")
-    
-    # Example 3: Get comprehensive map data with progress tracking
-    print("\n--- Example 3: Comprehensive Map Data ---")
-    task = await client.start_task(
-        "get_map_data",
-        {
-            "min_lat": 37.75,
-            "min_lon": -122.45,
-            "max_lat": 37.78,
-            "max_lon": -122.40,
-            "feature_types": ["amenity", "building", "highway", "natural"]
-        }
+    # Configure connection to the OSM MCP server
+    server_params = StdioServerParameters(
+        command="osm-mcp-server",
+        args=[],
+        env=None
     )
     
-    # Monitor progress
-    while True:
-        status = await task.get_status()
-        if status.state == "running":
-            print(f"Progress: {status.progress.current}/{status.progress.total} feature types processed")
-            # Get log messages
-            logs = await task.get_logs()
-            for log in logs:
-                print(f"  • {log.level}: {log.message}")
+    async with stdio_client(server_params) as (read, write):
+        async with ClientSession(read, write) as session:
+            # Initialize the connection
+            await session.initialize()
+            
+            # Get information about tools
+            response = await session.list_tools()
+            tools = response.tools
+            print(f"Available tools: {[tool.name for tool in tools]}")
+            
+            # Example 1: Geocode a location (using a tool)
+            print("\n--- Example 1: Geocode a Location ---")
+
+            location_result = await session.call_tool(
+                "geocode_address", 
+                {"address": "San Francisco"}
+            )
+            
+            # Parse the JSON response from the text content
+            locations = []
+            for content_item in location_result.content:
+                if content_item.type == 'text':
+                    locations.append(json.loads(content_item.text))
+            
+            if locations and len(locations) > 0:
+                print(f"Found place: {locations[0].get('display_name', 'Unknown')}")
+                lat = float(locations[0].get('lat', 0))
+                lon = float(locations[0].get('lon', 0))
+                print(f"Coordinates: {lat}, {lon}")
                 
-            await asyncio.sleep(0.5)
-        else:
-            break
-    
-    # Get the final result
-    result = await task.get_result()
-    print("\nMap data retrieval complete!")
-    print(f"Total features: {result['total_count']}")
-    for feature_type, features in result["features"].items():
-        print(f"  • {feature_type}: {len(features)} features")
+                # Example 2: Find nearby places
+                print("\n--- Example 2: Find Nearby Places ---")
+                nearby_result = await session.call_tool(
+                    "find_nearby_places",
+                    {
+                        "latitude": lat,
+                        "longitude": lon,
+                        "radius": 500,
+                        "categories": ["amenity"],
+                        "limit": 10
+                    }
+                )
+                
+                # Parse the nearby places result
+                nearby_places = {}
+                if nearby_result.content and len(nearby_result.content) > 0:
+                    nearby_text = nearby_result.content[0].text
+                    nearby_places = json.loads(nearby_text)
+                
+                total_count = nearby_places.get('total_count', 0)
+                print(f"Found {total_count} places near the location")
+                
+                # Print some categories if available
+                categories = nearby_places.get('categories', {})
+                for category, subcategories in categories.items():
+                    print(f"Category: {category}")
+                    for subcategory, places in subcategories.items():
+                        print(f"  - {subcategory}: {len(places)} places")
+                
+                # Example 3: Explore an area
+                print("\n--- Example 3: Explore Area ---")
+                area_result = await session.call_tool(
+                    "explore_area",
+                    {
+                        "latitude": lat,
+                        "longitude": lon,
+                        "radius": 800
+                    }
+                )
+                
+                # Parse the area exploration result
+                area_info = {}
+                if area_result.content and len(area_result.content) > 0:
+                    area_text = area_result.content[0].text
+                    area_info = json.loads(area_text)
+                
+                print(f"Area exploration complete!")
+                print(f"Total features: {area_info.get('total_features', 0)}")
+                for category, subcats in area_info.get('categories', {}).items():
+                    if subcats:
+                        feature_count = sum(len(places) for places in subcats.values())
+                        print(f"  • {category}: {feature_count} features")
 
 if __name__ == "__main__":
     asyncio.run(main())
