@@ -2,6 +2,17 @@
 
 An OpenStreetMap MCP server implementation that enhances LLM capabilities with location-based services and geospatial data.
 
+## Demo
+
+### Meeting Point Optimization
+![Meeting Point Use Case](demo/use-case-meeting.gif)
+
+### Neighborhood Analysis
+![Neighborhood Analysis Use Case](demo/use-case-neighborhood.gif)
+
+### Parking Search
+![Parking Search Use Case](demo/use-case-parking.gif)
+
 ## Features
 
 This server provides LLMs with tools to interact with OpenStreetMap data, enabling location-based applications to:
@@ -242,5 +253,6 @@ async def main():
 if __name__ == "__main__":
     asyncio.run(main())
 ```
+
 
 

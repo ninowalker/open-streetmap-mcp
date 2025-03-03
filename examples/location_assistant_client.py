@@ -542,7 +542,7 @@ async def example_llm_interaction():
             print(f"Error: {charging['error']}")
             
         print("\n=== EXAMPLE 7: NEIGHBORHOOD LIVABILITY ANALYSIS ===")
-        print("User: 'I'm considering moving to Cambridge, MA. How livable is it?'")
+        print("User: 'I'm considering moving to Berlin, Germany. How livable is it?'")
         
         # Analyze neighborhood livability
         livability = await assistant.analyze_neighborhood("Cambridge, MA", radius=1500)
