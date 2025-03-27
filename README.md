@@ -1,4 +1,4 @@
-# OpenStreetMap MCP Server
+# OpenStreetMap (OSM) MCP Server
 
 An OpenStreetMap MCP server implementation that enhances LLM capabilities with location-based services and geospatial data.
 
